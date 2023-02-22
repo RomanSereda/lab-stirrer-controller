@@ -12,16 +12,23 @@ void setup(void)
 {
     Serial.begin(115200); 
 
-    hallSensor.init(&led);
+    hallSensor.init();
     tempSensor.init();
 }
 
+uint8_t delayTime = 20;
+uint8_t counterUpdateTemperature = 0;
 void loop(void) 
 {
-    auto delayTime = 20;
-    tempSensor.loopAction(delayTime);
-    lcd.loopAction();
-    auto delayEnd = led.loopAction();
+    if(++counterUpdateTemperature == (1000u/delayTime))
+    {
+        tempSensor.loopAction();
+        counterUpdateTemperature = 0;
+    }
+    hallSensor.updateBlink();
+
+    lcd.loopAction(counterUpdateTemperature);
+    led.loopAction(!counterUpdateTemperature);
     delay(delayTime);
-    *delayEnd = false;
+
 }

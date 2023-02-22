@@ -10,17 +10,28 @@ HallSensor44eModel* HallSensor44eModel::m_instance = nullptr;
 HallSensor44eModel::HallSensor44eModel(const uint8_t dipoleMagnetCount) 
     : m_dipoleMagnetCount(dipoleMagnetCount) {}
 
-void HallSensor44eModel::init(RgbLedView* rgbLed)
+void HallSensor44eModel::init()
 {
-    m_rgbLed = rgbLed;
     HallSensor44eModel::m_instance = this;
 
+    pinMode(m_pinBoardLed, OUTPUT);
     pinMode(m_pinInterrupt, INPUT);
     attachInterrupt(m_pinInterrupt - 2, interrupt, CHANGE);
 
     #ifdef DEBUG
         Serial.println("Class HallSensor44eModel was initialized.");
     #endif
+}
+
+void HallSensor44eModel::updateBlink()
+{
+    if(m_isUpdatedBlink)
+    {
+        digitalWrite(m_pinBoardLed, HIGH);
+        m_isUpdatedBlink = false;
+    }
+    else
+        digitalWrite(m_pinBoardLed, LOW);
 }
 
 void HallSensor44eModel::interrupt()
@@ -35,7 +46,7 @@ void HallSensor44eModel::interrupt()
         m_instance->m_rotationTimes[SIZE_ROTATION_TIMES - 1] = delta;
         m_instance->m_debounce = millis();
 
-        m_instance->m_rgbLed->setHallSensorFlaf();
+        m_instance->m_isUpdatedBlink = true;
 
     #ifdef DEBUG
         Serial.println("Hall sensor indicate rotation time: " + String(delta));
@@ -101,7 +112,7 @@ void TemperatureSensor18b20Model::init()
     #endif
 }
 
-void TemperatureSensor18b20Model::loopAction(int delayTime)
+void TemperatureSensor18b20Model::loopAction()
 {
     m_dallasTemperature->requestTemperatures();
     m_currentTemp = m_dallasTemperature->getTempCByIndex(0);
@@ -111,11 +122,6 @@ void TemperatureSensor18b20Model::loopAction(int delayTime)
     #endif
 
     if(m_currentTemp <= -127.00)
-        return;
-
-    if(++m_counter == (500u / delayTime))
-        m_counter = 0;
-    else
         return;
 
     memcpy(&m_tempTimes[0], 

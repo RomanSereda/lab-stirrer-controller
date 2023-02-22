@@ -9,7 +9,7 @@ class LCD128x64View
 {
 public:
     explicit LCD128x64View(TemperatureSensor18b20Model& tempSensor, HallSensor44eModel& hallSensor);
-    void loopAction();
+    void loopAction(uint8_t tick);
 
 private:
     const uint8_t m_pinD0  = 12; //CKS
@@ -22,6 +22,9 @@ private:
     HallSensor44eModel& m_hallSensor;
 
     U8GLIB_SSD1306_128X64 m_u8g;
+
+    float m_averageTemperature = 0.0;
+    float m_lastTemperature = 0.0;
 };
 
 class RgbLedView
@@ -29,18 +32,16 @@ class RgbLedView
 public:
     RgbLedView(TemperatureSensor18b20Model& tempSensor, HallSensor44eModel& hallSensor);
 
-    volatile bool* loopAction();
-    void setHallSensorFlaf();
+    void loopAction(bool isBlueBlink);
 
 private:
     const uint8_t m_pinRed   = 3;
     const uint8_t m_pinGreed = 5;
     const uint8_t m_pinBlue  = 6;
 
-    volatile bool m_hallSignalFlag = false;
-
     TemperatureSensor18b20Model& m_tempSensor;
     HallSensor44eModel& m_hallSensor;
 
     void setRGB(uint8_t r, uint8_t g, uint8_t b);
+    void offRGB();
 };

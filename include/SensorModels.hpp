@@ -13,7 +13,8 @@ class HallSensor44eModel
 {
 public:
     HallSensor44eModel(const uint8_t dipoleMagnetCount);
-    void init(RgbLedView* rgbLed);
+    void init();
+    void updateBlink();
 
     uint16_t getLastRotationTime() const;
     uint16_t getAverageRotationTime() const;
@@ -21,13 +22,15 @@ public:
 private:
     const uint8_t m_dipoleMagnetCount;
     const uint8_t m_pinInterrupt = 2;
+    const uint8_t m_pinBoardLed = 13;
     volatile uint16_t m_debounce = 0;
 
     static void interrupt();
     uint16_t m_rotationTimes[SIZE_ROTATION_TIMES] = {0};
 
     static HallSensor44eModel* m_instance;
-    RgbLedView* m_rgbLed = nullptr;
+
+    volatile bool m_isUpdatedBlink = false;
 };
 
 class TemperatureSensor18b20Model 
@@ -36,7 +39,7 @@ public:
     virtual ~TemperatureSensor18b20Model();
     void init();
 
-    void loopAction(int delayTime);
+    void loopAction();
 
     float getLastTemperature() const;
     float getAverageTemperature() const;

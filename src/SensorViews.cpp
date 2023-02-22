@@ -12,18 +12,28 @@ LCD128x64View::LCD128x64View(TemperatureSensor18b20Model& tempSensor, HallSensor
     m_u8g.setFont(u8g_font_unifont);
 }
 
-void LCD128x64View::loopAction()
+void LCD128x64View::loopAction(uint8_t tick)
 {
     m_u8g.firstPage();
     do
     {
-        String line1 = "T:" + String(m_tempSensor.getLastTemperature()) 
-                     + " (" + String(m_tempSensor.getAverageTemperature()) + ")";
+        auto lastTemperature = m_tempSensor.getLastTemperature();
+        if(lastTemperature != m_lastTemperature)
+            m_averageTemperature = m_tempSensor.getAverageTemperature();
+        m_lastTemperature = lastTemperature;
+
+        String line1 = "T:" + String(m_lastTemperature) 
+                     + " (" + String(m_averageTemperature) + ")";
 
         auto rt = m_hallSensor.getLastRotationTime();
         String line2 = "Rt: "+ String(1000u / rt) 
                      + "rpm (" + String(rt) + "ms)";
 
+        String strTick;
+        for (size_t i = 0; i < tick; i++)
+            strTick += ".";
+        
+        m_u8g.drawStr(0, 3,  strTick.c_str());
         m_u8g.drawStr(0, 28, line1.c_str());
         m_u8g.drawStr(0, 48, line2.c_str());
     } while (m_u8g.nextPage());
@@ -36,20 +46,13 @@ RgbLedView::RgbLedView(TemperatureSensor18b20Model& tempSensor, HallSensor44eMod
     pinMode(m_pinGreed, OUTPUT);
     pinMode(m_pinBlue, OUTPUT);
 
-    setRGB(OFF_COMMON_ANODE, OFF_COMMON_ANODE, OFF_COMMON_ANODE);
+    offRGB();
 }
 
-volatile bool* RgbLedView::loopAction()
+void RgbLedView::loopAction(bool isBlueBlink)
 {
-    auto time = m_hallSensor.getLastRotationTime();
-    if(m_hallSignalFlag && time > 1000)
+    if(isBlueBlink)
     {
-        if(!time)
-        {
-            setRGB(OFF_COMMON_ANODE, OFF_COMMON_ANODE, OFF_COMMON_ANODE);
-            return &m_hallSignalFlag;
-        }
-
         setRGB(OFF_COMMON_ANODE, OFF_COMMON_ANODE, ON_COMMON_ANODE);
     }
     else
@@ -57,20 +60,13 @@ volatile bool* RgbLedView::loopAction()
         auto value = m_tempSensor.getLastTemperature();
         if(!value)
         {
-            setRGB(OFF_COMMON_ANODE, OFF_COMMON_ANODE, OFF_COMMON_ANODE);
-            return &m_hallSignalFlag;
+            offRGB();
+            return;
         }
 
         auto iv = static_cast<uint8_t>(value * 4);
         setRGB(255 - iv, iv, OFF_COMMON_ANODE);
-
     }
-    return &m_hallSignalFlag;
-}
-
-void RgbLedView::setHallSensorFlaf()
-{
-    m_hallSignalFlag = true;
 }
 
 void RgbLedView::setRGB(uint8_t r, uint8_t g, uint8_t b)
@@ -78,4 +74,9 @@ void RgbLedView::setRGB(uint8_t r, uint8_t g, uint8_t b)
     analogWrite(m_pinBlue, b);
     analogWrite(m_pinRed, r);
     analogWrite(m_pinGreed, g);    
+}
+
+void RgbLedView::offRGB()
+{
+    setRGB(OFF_COMMON_ANODE, OFF_COMMON_ANODE, OFF_COMMON_ANODE);
 }
