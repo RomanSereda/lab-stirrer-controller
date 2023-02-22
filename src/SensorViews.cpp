@@ -20,7 +20,7 @@ void LCD128x64View::loopAction(uint8_t tick)
                      + " (" + String(m_tempSensor.getLastAverageTemperature()) + ")";
 
         auto rt = m_hallSensor.getLastRotationTime();
-        String line2 = "Rt: "+ String(1000u / rt) 
+        String line2 = "Rt: "+ String(1000.0f / rt) 
                      + "rpm (" + String(rt) + "ms)";
 
         String strTick;
@@ -57,7 +57,6 @@ void RgbLedView::loopAction(bool isBlueBlink)
             offRGB();
             return;
         }
-
         auto iv = static_cast<uint8_t>(value * 4);
         setRGB(255 - iv, iv, OFF_COMMON_ANODE);
     }

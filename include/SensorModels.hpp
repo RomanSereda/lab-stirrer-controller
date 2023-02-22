@@ -19,25 +19,30 @@ public:
     void init();
     
     uint16_t getLastRotationTime() const;
-    uint16_t getAverageRotationTime() const;
+    float getLastAverageRotationTime() const;
 
 private:
     const uint8_t m_pinInterrupt = 2;
     const uint8_t m_pinBoardLed = 13;
 
-    volatile bool m_isUpdatedBlink = false;
-    void updateBlink();
-
-    SemaphoreHandle_t m_interruptSemaphore;
-    static void taskUpdateBlink(void* arg);
-
     volatile uint16_t m_debounce = 0;
     const uint8_t m_dipoleMagnetCount;
+
+    SemaphoreHandle_t m_interruptSemaphore;
+    volatile bool m_isUpdatedBlink = false;
+
+    void updateBlink();
+    static void taskUpdateBlink(void* arg);
     
     static HallSensor44eModel* m_instance;
     static void interrupt();
     
     uint16_t m_rotationTimes[SIZE_ROTATION_TIMES] = {0};
+
+    uint16_t m_currentRtTime = 0.0;
+    float m_currentAverageRpm = 0.0;
+
+    float getAverageRpm() const;
 };
 
 class TemperatureSensor18b20Model 
@@ -53,15 +58,14 @@ private:
     OneWire* m_oneWire = nullptr;
     DallasTemperature* m_dallasTemperature = nullptr;
 
-    static void taskLoop(void* arg);
     void loopAction();
-
-    float getAverageTemperature() const;
+    static void taskLoop(void* arg);
 
     const uint8_t m_pin = 4;
     float m_tempTimes[SIZE_TEMPERATURE_TIMES] = {0.0};
-    unsigned int m_counter = 0;
 
     float m_currentTemp = 0.0;
     float m_currentAverageTemp = 0.0;
+
+    float getAverageTemperature() const;
 };

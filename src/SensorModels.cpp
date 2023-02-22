@@ -69,7 +69,10 @@ void HallSensor44eModel::interrupt()
                (SIZE_ROTATION_TIMES - 1) * sizeof(uint16_t));
 
         m_instance->m_rotationTimes[SIZE_ROTATION_TIMES - 1] = delta;
+        m_instance->m_currentRtTime = delta;
         m_instance->m_debounce = millis();
+
+        m_instance->m_currentAverageRpm = m_instance->getAverageRpm();
 
         m_instance->m_isUpdatedBlink = true;
         xSemaphoreGiveFromISR(m_instance->m_interruptSemaphore, NULL);
@@ -82,14 +85,19 @@ void HallSensor44eModel::interrupt()
 
 uint16_t HallSensor44eModel::getLastRotationTime() const
 {
-    return m_rotationTimes[SIZE_ROTATION_TIMES - 1];
+    return m_currentRtTime;
 }
 
-uint16_t HallSensor44eModel::getAverageRotationTime() const
+float HallSensor44eModel::getLastAverageRotationTime() const
+{
+    return m_currentAverageRpm;
+}
+
+float HallSensor44eModel::getAverageRpm() const
 {
     const uint16_t maxRotationTime = 4000;
     uint8_t counter = 0;
-    uint16_t average = 0;
+    float average = 0.0f;
 
     #ifdef DEBUG
         String text;
@@ -106,9 +114,12 @@ uint16_t HallSensor44eModel::getAverageRotationTime() const
         #endif
     }
 
+    if(average == 0.0f)
+        return 0.0f;
+
     average = (average / counter) / m_dipoleMagnetCount;
     if(average > maxRotationTime)
-        average = 0;
+        average = 0.0f;
 
     #ifdef DEBUG
         Serial.println("Average: " + String(average) + " Rotation times: " + text);
@@ -155,7 +166,7 @@ void TemperatureSensor18b20Model::loopAction()
         Serial.println("Current temperature: " + String(m_currentTemp));
     #endif
 
-    if(m_currentTemp <= -127.00)
+    if(m_currentTemp <= -127.00f)
         return;
 
     memcpy(&m_tempTimes[0], 
@@ -190,7 +201,7 @@ float TemperatureSensor18b20Model::getLastAverageTemperature() const
 float TemperatureSensor18b20Model::getAverageTemperature() const
 {
     uint8_t counter = 0;
-    float average = 0.0;
+    float average = 0.0f;
 
     #ifdef DEBUG
         String text;
@@ -211,8 +222,8 @@ float TemperatureSensor18b20Model::getAverageTemperature() const
         Serial.println("Average temp: " + String(average) + " : " + text);
     #endif
 
-    if(average == 0.0){
-        return 0.0;
+    if(average == 0.0f){
+        return 0.0f;
     }
     return average / counter;
 }
