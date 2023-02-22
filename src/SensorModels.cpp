@@ -18,7 +18,7 @@ void HallSensor44eModel::init()
     pinMode(m_pinInterrupt, INPUT);
 
     TaskHandle_t taskHandle;
-    if(auto result = xTaskCreate(taskUpdateBlink, "upbl", configMINIMAL_STACK_SIZE, this, tskIDLE_PRIORITY, &taskHandle)){
+    if(auto result = xTaskCreate(taskUpdateBlink, "hsub", configMINIMAL_STACK_SIZE, this, tskIDLE_PRIORITY + 1, &taskHandle)){
         if(result){
             #ifdef DEBUG
                 Serial.println("Error: not created task updateBlink. Result: " + String(result));
@@ -55,7 +55,7 @@ void HallSensor44eModel::taskUpdateBlink(void* arg)
         if(xSemaphoreTake(instance->m_interruptSemaphore, portMAX_DELAY) == pdPASS) {
             instance->updateBlink();
         }
-        vTaskDelay(50);
+        vTaskDelay(50u / portTICK_PERIOD_MS);
     }
     vTaskDelete(NULL);
 }
@@ -63,8 +63,7 @@ void HallSensor44eModel::taskUpdateBlink(void* arg)
 void HallSensor44eModel::interrupt()
 {
     uint16_t delta = millis() - m_instance->m_debounce;
-    if (delta >= 50 && digitalRead(m_instance->m_pinInterrupt))
-    {
+    if (delta >= 50 && digitalRead(m_instance->m_pinInterrupt))  {
         memcpy(&m_instance->m_rotationTimes[0], 
                &m_instance->m_rotationTimes[1], 
                (SIZE_ROTATION_TIMES - 1) * sizeof(uint16_t));
@@ -73,7 +72,6 @@ void HallSensor44eModel::interrupt()
         m_instance->m_debounce = millis();
 
         m_instance->m_isUpdatedBlink = true;
-
         xSemaphoreGiveFromISR(m_instance->m_interruptSemaphore, NULL);
 
     #ifdef DEBUG
@@ -97,10 +95,8 @@ uint16_t HallSensor44eModel::getAverageRotationTime() const
         String text;
     #endif
 
-    for(auto value: m_rotationTimes)
-    {
-        if(value != 0 && value < maxRotationTime)
-        {
+    for(auto value: m_rotationTimes) {
+        if(value != 0 && value < maxRotationTime) {
             average += value;
             ++counter;
         }
@@ -136,7 +132,7 @@ void TemperatureSensor18b20Model::init()
     m_dallasTemperature->begin();
 
     TaskHandle_t taskHandle;
-    if(auto result = xTaskCreate(taskLoop, "tstl", configMINIMAL_STACK_SIZE, this, tskIDLE_PRIORITY, &taskHandle)){
+    if(auto result = xTaskCreate(taskLoop, "tstl", configMINIMAL_STACK_SIZE, this, tskIDLE_PRIORITY + 1, &taskHandle)){
         if(result){
             #ifdef DEBUG
                 Serial.println("Error: not created task updateBlink. Result: " + String(result));
@@ -176,7 +172,7 @@ void TemperatureSensor18b20Model::taskLoop(void* arg)
     auto instance = reinterpret_cast<TemperatureSensor18b20Model*>(arg);
     while(true) {
         instance->loopAction();
-        vTaskDelay(1000);
+        vTaskDelay(1000u / portTICK_PERIOD_MS);
     }
     vTaskDelete(NULL);
 }
@@ -200,10 +196,8 @@ float TemperatureSensor18b20Model::getAverageTemperature() const
         String text;
     #endif
 
-    for(auto value: m_tempTimes)
-    {
-        if(value != 0)
-        {
+    for(auto value: m_tempTimes) {
+        if(value != 0) {
             average += value;
             ++counter;
         }
@@ -212,10 +206,13 @@ float TemperatureSensor18b20Model::getAverageTemperature() const
             text += "{" + String(value) + "}";
         #endif
     }
-    average = average / counter;
 
     #ifdef DEBUG
         Serial.println("Average temp: " + String(average) + " : " + text);
     #endif
-    return average;
+
+    if(average == 0.0){
+        return 0.0;
+    }
+    return average / counter;
 }

@@ -11,9 +11,8 @@ void setup(void)
     Serial.begin(115200); 
     hallSensor.init();
     //tempSensor.init();
+
+    vTaskStartScheduler();
 }
 
-
-void loop(void) 
-{
-}
+void loop(void) {}
