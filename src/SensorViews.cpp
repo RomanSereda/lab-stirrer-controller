@@ -20,8 +20,8 @@ void LCD128x64View::loopAction(uint8_t tick)
                      + " (" + String(m_tempSensor.getLastAverageTemperature()) + ")";
 
         auto rt = m_hallSensor.getLastRotationTime();
-        String line2 = "Rt: "+ String(1000.0f / rt) 
-                     + "rpm (" + String(rt) + "ms)";
+        auto rpm = m_hallSensor.getLastAverageRotationTime();
+        String line2 = "Rt: "+ String(rt) + "ms (" + String(rpm) + "rpm)";
 
         String strTick;
         for (size_t i = 0; i < tick; i++)

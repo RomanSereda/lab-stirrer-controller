@@ -68,18 +68,15 @@ void HallSensor44eModel::interrupt()
                &m_instance->m_rotationTimes[1], 
                (SIZE_ROTATION_TIMES - 1) * sizeof(uint16_t));
 
-        m_instance->m_rotationTimes[SIZE_ROTATION_TIMES - 1] = delta;
         m_instance->m_currentRtTime = delta;
+        m_instance->m_rotationTimes[SIZE_ROTATION_TIMES - 1] = delta;
+        
         m_instance->m_debounce = millis();
+        m_instance->m_isUpdatedBlink = true;
 
         m_instance->m_currentAverageRpm = m_instance->getAverageRpm();
 
-        m_instance->m_isUpdatedBlink = true;
         xSemaphoreGiveFromISR(m_instance->m_interruptSemaphore, NULL);
-
-    #ifdef DEBUG
-        Serial.println("Hall sensor indicate rotation time: " + String(delta));
-    #endif
     }
 }
 
@@ -114,17 +111,18 @@ float HallSensor44eModel::getAverageRpm() const
         #endif
     }
 
+    #ifdef DEBUG
+        Serial.println("Rotation avg time: " + String(average) + " r-avg items: " + text);
+    #endif
+
     if(average == 0.0f)
         return 0.0f;
 
     average = (average / counter) / m_dipoleMagnetCount;
     if(average > maxRotationTime)
-        average = 0.0f;
+        return 0.0f;
 
-    #ifdef DEBUG
-        Serial.println("Average: " + String(average) + " Rotation times: " + text);
-    #endif
-    return average;
+    return 1000.0f / average;
 }
 
 TemperatureSensor18b20Model::~TemperatureSensor18b20Model()

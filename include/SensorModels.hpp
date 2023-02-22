@@ -3,7 +3,6 @@
 #define SIMPLE_MAGNETIC_MIXER 1
 #define SIZE_ROTATION_TIMES 4
 #define SIZE_TEMPERATURE_TIMES 8
-#define MAX_TEMPERATURE 120
 
 class OneWire;
 class DallasTemperature;
@@ -39,7 +38,7 @@ private:
     
     uint16_t m_rotationTimes[SIZE_ROTATION_TIMES] = {0};
 
-    uint16_t m_currentRtTime = 0.0;
+    uint16_t m_currentRtTime = 0;
     float m_currentAverageRpm = 0.0;
 
     float getAverageRpm() const;
