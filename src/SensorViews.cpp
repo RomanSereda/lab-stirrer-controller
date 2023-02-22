@@ -17,17 +17,13 @@ void LCD128x64View::loopAction(uint8_t tick)
     m_u8g.firstPage();
     do {
         String line1 = "T:" + String(m_tempSensor.getLastTemperature()) 
-                     + " (" + String(m_tempSensor.getLastAverageTemperature()) + ")";
+                     + " " + String(m_tempSensor.getLastDiffTemperature()) + "dt";
 
         auto rt = m_hallSensor.getLastRotationTime();
         auto rpm = m_hallSensor.getLastAverageRotationTime();
-        String line2 = "Rt: "+ String(rt) + "ms (" + String(rpm) + "rpm)";
+        String line2 = "Rt:"+ String(rt) + "ms " + String(rpm).substring(0, 3) + "rpm";
 
-        String strTick;
-        for (size_t i = 0; i < tick; i++)
-            strTick += ".";
-        
-        m_u8g.drawStr(0, 3,  strTick.c_str());
+        m_u8g.drawHLine(3, 3, tick * 128u / 50u);
         m_u8g.drawStr(0, 28, line1.c_str());
         m_u8g.drawStr(0, 48, line2.c_str());
     } while (m_u8g.nextPage());
@@ -51,14 +47,17 @@ void RgbLedView::loopAction(bool isBlueBlink)
     }
     else
     {
-        auto value = m_tempSensor.getLastTemperature();
-        if(!value)
+        auto diff = m_tempSensor.getTempDiff();
+        if(diff->pos == 0.0f && diff->neg == 0.0f)
         {
             offRGB();
             return;
         }
-        auto iv = static_cast<uint8_t>(value * 4);
-        setRGB(255 - iv, iv, OFF_COMMON_ANODE);
+
+        uint8_t r = diff->pos * 32;
+        uint8_t g = -diff->neg * 32;
+        
+        setRGB(255 - r, 255 - g, OFF_COMMON_ANODE);
     }
 }
 

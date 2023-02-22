@@ -8,14 +8,19 @@ class OneWire;
 class DallasTemperature;
 class RgbLedView;
 
-#include <Arduino_FreeRTOS.h>
-#include <semphr.h>
+struct TempDiff
+{
+    float neg;
+    float pos;
+};
 
 class HallSensor44eModel
 {
 public:
     HallSensor44eModel(const uint8_t dipoleMagnetCount);
     void init();
+
+    void updateBlink();
     
     uint16_t getLastRotationTime() const;
     float getLastAverageRotationTime() const;
@@ -27,11 +32,8 @@ private:
     volatile uint16_t m_debounce = 0;
     const uint8_t m_dipoleMagnetCount;
 
-    SemaphoreHandle_t m_interruptSemaphore;
+    
     volatile bool m_isUpdatedBlink = false;
-
-    void updateBlink();
-    static void taskUpdateBlink(void* arg);
     
     static HallSensor44eModel* m_instance;
     static void interrupt();
@@ -50,21 +52,23 @@ public:
     virtual ~TemperatureSensor18b20Model();
     void init();
 
+    void loopAction();
+
     float getLastTemperature() const;
-    float getLastAverageTemperature() const;
+    float getLastDiffTemperature() const;
+
+    TempDiff* getTempDiff();
 
 private:
     OneWire* m_oneWire = nullptr;
     DallasTemperature* m_dallasTemperature = nullptr;
 
-    void loopAction();
-    static void taskLoop(void* arg);
-
     const uint8_t m_pin = 4;
     float m_tempTimes[SIZE_TEMPERATURE_TIMES] = {0.0};
 
     float m_currentTemp = 0.0;
-    float m_currentAverageTemp = 0.0;
+    float m_currentDiffTemp = 0.0;
 
-    float getAverageTemperature() const;
+    TempDiff* m_tempDiff;
+    float getDiffTemperature() const;
 };

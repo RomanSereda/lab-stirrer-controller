@@ -3,7 +3,7 @@
 #include "DallasTemperature.h"
 #include "SensorViews.hpp"
 
-#define DEBUG
+//#define DEBUG
 
 HallSensor44eModel* HallSensor44eModel::m_instance = nullptr;
 
@@ -17,20 +17,7 @@ void HallSensor44eModel::init()
     pinMode(m_pinBoardLed, OUTPUT);
     pinMode(m_pinInterrupt, INPUT);
 
-    TaskHandle_t taskHandle;
-    if(auto result = xTaskCreate(taskUpdateBlink, "hsub", configMINIMAL_STACK_SIZE, this, tskIDLE_PRIORITY + 1, &taskHandle)){
-        if(result){
-            #ifdef DEBUG
-                Serial.println("Error: not created task updateBlink. Result: " + String(result));
-            #endif
-            return;
-        } 
-    }
-
-    m_interruptSemaphore = xSemaphoreCreateBinary();
-    if(m_interruptSemaphore){
-        attachInterrupt(m_pinInterrupt - 2, interrupt, CHANGE);
-    }
+    attachInterrupt(m_pinInterrupt - 2, interrupt, CHANGE);
 
     #ifdef DEBUG
         Serial.println("Class HallSensor44eModel was initialized.");
@@ -48,18 +35,6 @@ void HallSensor44eModel::updateBlink()
     }
 }
 
-void HallSensor44eModel::taskUpdateBlink(void* arg)
-{
-    auto instance = reinterpret_cast<HallSensor44eModel*>(arg);
-    while(true) {
-        if(xSemaphoreTake(instance->m_interruptSemaphore, portMAX_DELAY) == pdPASS) {
-            instance->updateBlink();
-        }
-        vTaskDelay(50u / portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-}
-
 void HallSensor44eModel::interrupt()
 {
     uint16_t delta = millis() - m_instance->m_debounce;
@@ -75,8 +50,6 @@ void HallSensor44eModel::interrupt()
         m_instance->m_isUpdatedBlink = true;
 
         m_instance->m_currentAverageRpm = m_instance->getAverageRpm();
-
-        xSemaphoreGiveFromISR(m_instance->m_interruptSemaphore, NULL);
     }
 }
 
@@ -131,24 +104,17 @@ TemperatureSensor18b20Model::~TemperatureSensor18b20Model()
         delete m_oneWire;
     if(m_dallasTemperature)
         delete m_dallasTemperature;
+    if(m_tempDiff)
+        delete m_tempDiff;
 }
 
 void TemperatureSensor18b20Model::init()
 {
     m_oneWire = new OneWire(m_pin);
     m_dallasTemperature = new DallasTemperature(m_oneWire);
+    m_tempDiff = new TempDiff;
 
     m_dallasTemperature->begin();
-
-    TaskHandle_t taskHandle;
-    if(auto result = xTaskCreate(taskLoop, "tstl", configMINIMAL_STACK_SIZE, this, tskIDLE_PRIORITY + 1, &taskHandle)){
-        if(result){
-            #ifdef DEBUG
-                Serial.println("Error: not created task updateBlink. Result: " + String(result));
-            #endif
-            return;
-        } 
-    }
 
     #ifdef DEBUG
         Serial.println("Class TemperatureSensor18b20Model was initialized.");
@@ -173,17 +139,11 @@ void TemperatureSensor18b20Model::loopAction()
 
     m_tempTimes[SIZE_TEMPERATURE_TIMES - 1] = m_currentTemp;
 
-    m_currentAverageTemp = getAverageTemperature();
-}
+    m_currentDiffTemp = getDiffTemperature();
 
-void TemperatureSensor18b20Model::taskLoop(void* arg)
-{
-    auto instance = reinterpret_cast<TemperatureSensor18b20Model*>(arg);
-    while(true) {
-        instance->loopAction();
-        vTaskDelay(1000u / portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
+    #ifdef DEBUG
+        Serial.println("Diff temp: " + String(m_currentDiffTemp));
+    #endif
 }
 
 float TemperatureSensor18b20Model::getLastTemperature() const
@@ -191,37 +151,47 @@ float TemperatureSensor18b20Model::getLastTemperature() const
     return m_currentTemp;
 }
 
-float TemperatureSensor18b20Model::getLastAverageTemperature() const
+float TemperatureSensor18b20Model::getLastDiffTemperature() const
 {
-    return m_currentAverageTemp;
+    return m_currentDiffTemp;
 }
 
-float TemperatureSensor18b20Model::getAverageTemperature() const
+TempDiff* TemperatureSensor18b20Model::getTempDiff()
 {
-    uint8_t counter = 0;
-    float average = 0.0f;
+    return m_tempDiff;
+}
 
+float TemperatureSensor18b20Model::getDiffTemperature() const
+{
     #ifdef DEBUG
         String text;
+        for(auto value: m_tempTimes) {
+            text += "{" + String(value) + "}";
+        }
+        Serial.println("Temp times: " + text);
     #endif
 
-    for(auto value: m_tempTimes) {
-        if(value != 0) {
-            average += value;
-            ++counter;
-        }
+    float negDiff = 0.0f;
+    float posDiff = 0.0f;
 
-        #ifdef DEBUG
-            text += "{" + String(value) + "}";
-        #endif
+    for (size_t i = 1; i < SIZE_TEMPERATURE_TIMES - 1; i++)
+    {
+        if(m_tempTimes[i - 1] == 0.0)
+            continue;
+
+        auto diff = m_tempTimes[i] - m_tempTimes[i - 1];
+        if(diff > 0)
+            posDiff += diff;
+        else
+            negDiff += diff;
     }
 
     #ifdef DEBUG
-        Serial.println("Average temp: " + String(average) + " : " + text);
+        Serial.println("posDiff: " + String(posDiff) + " negDiff: " + String(negDiff));
     #endif
 
-    if(average == 0.0f){
-        return 0.0f;
-    }
-    return average / counter;
+    m_tempDiff->neg = negDiff;
+    m_tempDiff->pos = posDiff;
+
+    return negDiff + posDiff;
 }
