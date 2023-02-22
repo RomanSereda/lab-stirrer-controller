@@ -22,9 +22,6 @@ private:
     HallSensor44eModel& m_hallSensor;
 
     U8GLIB_SSD1306_128X64 m_u8g;
-
-    float m_averageTemperature = 0.0;
-    float m_lastTemperature = 0.0;
 };
 
 class RgbLedView

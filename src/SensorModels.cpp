@@ -3,7 +3,7 @@
 #include "DallasTemperature.h"
 #include "SensorViews.hpp"
 
-//#define DEBUG
+#define DEBUG
 
 HallSensor44eModel* HallSensor44eModel::m_instance = nullptr;
 
@@ -16,7 +16,21 @@ void HallSensor44eModel::init()
 
     pinMode(m_pinBoardLed, OUTPUT);
     pinMode(m_pinInterrupt, INPUT);
-    attachInterrupt(m_pinInterrupt - 2, interrupt, CHANGE);
+
+    TaskHandle_t taskHandle;
+    if(auto result = xTaskCreate(taskUpdateBlink, "upbl", configMINIMAL_STACK_SIZE, this, tskIDLE_PRIORITY, &taskHandle)){
+        if(result){
+            #ifdef DEBUG
+                Serial.println("Error: not created task updateBlink. Result: " + String(result));
+            #endif
+            return;
+        } 
+    }
+
+    m_interruptSemaphore = xSemaphoreCreateBinary();
+    if(m_interruptSemaphore){
+        attachInterrupt(m_pinInterrupt - 2, interrupt, CHANGE);
+    }
 
     #ifdef DEBUG
         Serial.println("Class HallSensor44eModel was initialized.");
@@ -25,13 +39,25 @@ void HallSensor44eModel::init()
 
 void HallSensor44eModel::updateBlink()
 {
-    if(m_isUpdatedBlink)
-    {
+    if(m_isUpdatedBlink) {
         digitalWrite(m_pinBoardLed, HIGH);
         m_isUpdatedBlink = false;
     }
-    else
+    else {
         digitalWrite(m_pinBoardLed, LOW);
+    }
+}
+
+void HallSensor44eModel::taskUpdateBlink(void* arg)
+{
+    auto instance = reinterpret_cast<HallSensor44eModel*>(arg);
+    while(true) {
+        if(xSemaphoreTake(instance->m_interruptSemaphore, portMAX_DELAY) == pdPASS) {
+            instance->updateBlink();
+        }
+        vTaskDelay(50);
+    }
+    vTaskDelete(NULL);
 }
 
 void HallSensor44eModel::interrupt()
@@ -47,6 +73,8 @@ void HallSensor44eModel::interrupt()
         m_instance->m_debounce = millis();
 
         m_instance->m_isUpdatedBlink = true;
+
+        xSemaphoreGiveFromISR(m_instance->m_interruptSemaphore, NULL);
 
     #ifdef DEBUG
         Serial.println("Hall sensor indicate rotation time: " + String(delta));
@@ -107,6 +135,16 @@ void TemperatureSensor18b20Model::init()
 
     m_dallasTemperature->begin();
 
+    TaskHandle_t taskHandle;
+    if(auto result = xTaskCreate(taskLoop, "tstl", configMINIMAL_STACK_SIZE, this, tskIDLE_PRIORITY, &taskHandle)){
+        if(result){
+            #ifdef DEBUG
+                Serial.println("Error: not created task updateBlink. Result: " + String(result));
+            #endif
+            return;
+        } 
+    }
+
     #ifdef DEBUG
         Serial.println("Class TemperatureSensor18b20Model was initialized.");
     #endif
@@ -129,11 +167,28 @@ void TemperatureSensor18b20Model::loopAction()
            (SIZE_TEMPERATURE_TIMES - 1) * sizeof(float));
 
     m_tempTimes[SIZE_TEMPERATURE_TIMES - 1] = m_currentTemp;
+
+    m_currentAverageTemp = getAverageTemperature();
+}
+
+void TemperatureSensor18b20Model::taskLoop(void* arg)
+{
+    auto instance = reinterpret_cast<TemperatureSensor18b20Model*>(arg);
+    while(true) {
+        instance->loopAction();
+        vTaskDelay(1000);
+    }
+    vTaskDelete(NULL);
 }
 
 float TemperatureSensor18b20Model::getLastTemperature() const
 {
     return m_currentTemp;
+}
+
+float TemperatureSensor18b20Model::getLastAverageTemperature() const
+{
+    return m_currentAverageTemp;
 }
 
 float TemperatureSensor18b20Model::getAverageTemperature() const

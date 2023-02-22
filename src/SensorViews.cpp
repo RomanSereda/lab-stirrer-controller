@@ -15,15 +15,9 @@ LCD128x64View::LCD128x64View(TemperatureSensor18b20Model& tempSensor, HallSensor
 void LCD128x64View::loopAction(uint8_t tick)
 {
     m_u8g.firstPage();
-    do
-    {
-        auto lastTemperature = m_tempSensor.getLastTemperature();
-        if(lastTemperature != m_lastTemperature)
-            m_averageTemperature = m_tempSensor.getAverageTemperature();
-        m_lastTemperature = lastTemperature;
-
-        String line1 = "T:" + String(m_lastTemperature) 
-                     + " (" + String(m_averageTemperature) + ")";
+    do {
+        String line1 = "T:" + String(m_tempSensor.getLastTemperature()) 
+                     + " (" + String(m_tempSensor.getLastAverageTemperature()) + ")";
 
         auto rt = m_hallSensor.getLastRotationTime();
         String line2 = "Rt: "+ String(1000u / rt) 
