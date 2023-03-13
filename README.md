@@ -1,6 +1,6 @@
-## Lab Stirrer Controller
+## [PlatformIO] Lab Stirrer Controller
 
-### [PlatformIO] Heating Informer for a laboratory stirrer on based Arduino UNO.
+### Heating Informer for a laboratory stirrer on based Arduino UNO.
 
 ·Temperature sensor:
     DS18B20, resistor 10kΩ, pin 4.  Lcd view first line: 1)Last temperature; 2)Heating-cooling speed.
